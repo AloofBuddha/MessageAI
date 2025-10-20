@@ -1,0 +1,20 @@
+{
+  "name": "messageai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "functions",
+    "shared"
+  ],
+  "scripts": {
+    "mobile": "cd mobile && npm start",
+    "functions": "npm run serve --workspace=functions",
+    "shared:build": "npm run build --workspace=shared"
+  },
+  "description": "MessageAI - Cross-platform messaging app with AI features",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "react-native-web": "^0.21.0"
+  }
+}
