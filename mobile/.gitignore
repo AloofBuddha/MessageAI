@@ -50,8 +50,9 @@ yarn-error.*
 !/android/app/src/
 /android/app/src/*
 !/android/app/src/main/
-/android/app/src/main/java/
-/android/app/src/main/assets/
+/android/app/src/main/*
+!/android/app/src/main/AndroidManifest.xml
+!/android/app/src/main/res/
 /android/app/build/
 /android/build/
 /android/.gradle/
