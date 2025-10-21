@@ -21,7 +21,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.messageai"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +31,12 @@
       "expo-router",
       "expo-sqlite"
     ],
-    "scheme": "messageai"
+    "scheme": "messageai",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e2412bc2-a22c-4d7a-a498-fbe10a2fd189"
+      }
+    }
   }
 }

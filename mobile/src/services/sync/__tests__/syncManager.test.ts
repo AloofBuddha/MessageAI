@@ -115,7 +115,7 @@ describe('SyncManager', () => {
       ];
 
       mockPendingRepo.getAll.mockResolvedValue(pendingMessages);
-      mockSendMessage.mockResolvedValue(undefined);
+      mockSendMessage.mockResolvedValue('msg-id-123');
 
       await syncManager.processPendingQueue();
 

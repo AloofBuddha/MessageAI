@@ -8,6 +8,8 @@ import {
   Timestamp,
   updateDoc,
   doc,
+  writeBatch,
+  arrayUnion,
 } from 'firebase/firestore';
 import { Message } from '@messageai/shared';
 import { firestore } from '../firebase/config';
@@ -95,7 +97,69 @@ export async function sendMessage(
 }
 
 /**
+ * Mark messages as delivered
+ * Uses batch write for efficiency when marking multiple messages
+ */
+export async function markAsDelivered(
+  conversationId: string,
+  messageIds: string[],
+  userId: string
+): Promise<void> {
+  if (messageIds.length === 0) return;
+
+  try {
+    const batch = writeBatch(firestore);
+
+    for (const messageId of messageIds) {
+      const messageRef = doc(firestore, `conversations/${conversationId}/messages`, messageId);
+      batch.update(messageRef, {
+        deliveredTo: arrayUnion(userId),
+        status: 'delivered',
+      });
+    }
+
+    await batch.commit();
+    console.log(`✅ Marked ${messageIds.length} messages as delivered`);
+  } catch (error) {
+    console.error('Error marking messages as delivered:', error);
+    throw error;
+  }
+}
+
+/**
+ * Mark messages as read
+ * Uses batch write for efficiency when marking multiple messages
+ */
+export async function markAsRead(
+  conversationId: string,
+  messageIds: string[],
+  userId: string
+): Promise<void> {
+  if (messageIds.length === 0) return;
+
+  try {
+    const batch = writeBatch(firestore);
+
+    for (const messageId of messageIds) {
+      const messageRef = doc(firestore, `conversations/${conversationId}/messages`, messageId);
+      batch.update(messageRef, {
+        readBy: arrayUnion(userId),
+        deliveredTo: arrayUnion(userId), // Also mark as delivered if not already
+        status: 'read',
+      });
+    }
+
+    await batch.commit();
+    console.log(`✅ Marked ${messageIds.length} messages as read`);
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    throw error;
+  }
+}
+
+/**
  * Update message status (for delivery/read receipts)
+ * @deprecated Use markAsDelivered or markAsRead instead for better batch support
  */
 export async function updateMessageStatus(
   conversationId: string,
@@ -109,9 +173,9 @@ export async function updateMessageStatus(
     const updates: any = { status };
     
     if (status === 'delivered' && userId) {
-      updates.deliveredTo = [...(updates.deliveredTo || []), userId];
+      updates.deliveredTo = arrayUnion(userId);
     } else if (status === 'read' && userId) {
-      updates.readBy = [...(updates.readBy || []), userId];
+      updates.readBy = arrayUnion(userId);
     }
     
     await updateDoc(messageRef, updates);
@@ -120,4 +184,3 @@ export async function updateMessageStatus(
     throw error;
   }
 }
-

@@ -76,7 +76,7 @@ describe('MessageRepository', () => {
         },
       ];
 
-      mockDb.getAllSync.mockReturnValue(mockRows);
+      (mockDb.getAllSync as jest.Mock).mockReturnValue(mockRows);
 
       const result = await repository.getByConversation('conv-1');
 
@@ -97,7 +97,7 @@ describe('MessageRepository', () => {
     });
 
     it('should return empty array when no messages found', async () => {
-      mockDb.getAllSync.mockReturnValue([]);
+      (mockDb.getAllSync as jest.Mock).mockReturnValue([]);
 
       const result = await repository.getByConversation('conv-1');
 

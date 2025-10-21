@@ -71,7 +71,7 @@ describe('ConversationRepository', () => {
         },
       ];
 
-      mockDb.getAllSync.mockReturnValue(mockRows);
+      (mockDb.getAllSync as jest.Mock).mockReturnValue(mockRows);
 
       const result = await repository.getForUser('user-1');
 
@@ -90,7 +90,7 @@ describe('ConversationRepository', () => {
     });
 
     it('should return empty array when no conversations found', async () => {
-      mockDb.getAllSync.mockReturnValue([]);
+      (mockDb.getAllSync as jest.Mock).mockReturnValue([]);
 
       const result = await repository.getForUser('user-1');
 
@@ -112,7 +112,7 @@ describe('ConversationRepository', () => {
         created_by: 'user-1',
       };
 
-      mockDb.getFirstSync.mockReturnValue(mockRow);
+      (mockDb.getFirstSync as jest.Mock).mockReturnValue(mockRow);
 
       const result = await repository.getById('conv-1');
 
@@ -128,7 +128,7 @@ describe('ConversationRepository', () => {
     });
 
     it('should return null when conversation not found', async () => {
-      mockDb.getFirstSync.mockReturnValue(null);
+      (mockDb.getFirstSync as jest.Mock).mockReturnValue(null);
 
       const result = await repository.getById('conv-1');
 

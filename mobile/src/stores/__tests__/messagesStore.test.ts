@@ -179,7 +179,7 @@ describe('MessagesStore', () => {
       });
 
       mockMessageRepo.upsert.mockResolvedValue(undefined);
-      mockSendMessageToFirestore.mockResolvedValue(undefined);
+      mockSendMessageToFirestore.mockResolvedValue('msg-id-123');
 
       await useMessagesStore.getState().sendMessage('conv-1', 'user-1', 'Hello online');
 
@@ -204,7 +204,7 @@ describe('MessagesStore', () => {
       });
 
       mockMessageRepo.upsert.mockResolvedValue(undefined);
-      mockSendMessageToFirestore.mockResolvedValue(undefined);
+      mockSendMessageToFirestore.mockResolvedValue('msg-id-456');
 
       await useMessagesStore.getState().sendMessage('conv-1', 'user-1', 'Test message');
 

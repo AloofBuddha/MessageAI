@@ -1,25 +1,43 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useMessagesStore } from '../../src/stores/messagesStore';
 import MessageBubble from '../../src/components/molecules/MessageBubble';
 import ChatInput from '../../src/components/molecules/ChatInput';
 import OfflineIndicator from '../../src/components/atoms/OfflineIndicator';
+import { markAsRead } from '../../src/services/firestore/messagesService';
+import { DebouncedBatch } from '../../src/utils/debounce';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const conversationId = id as string;
   
   const { user } = useAuthStore();
-  const { messagesByConversation, isLoading, loadMessages, sendMessage, clearMessages } = useMessagesStore();
+  const { messagesByConversation, isLoading, loadMessages, sendMessage, retryMessage, clearMessages } = useMessagesStore();
   
   const messages = messagesByConversation[conversationId] || [];
   const loading = isLoading[conversationId];
   
   const flatListRef = useRef<FlatList>(null);
+  
+  // Debounced batch for read receipts - accumulates message IDs and flushes after 1s
+  const readReceiptBatch = useMemo(() => {
+    if (!user || !conversationId) return null;
+    
+    return new DebouncedBatch<string>(
+      async (messageIds: string[]) => {
+        try {
+          await markAsRead(conversationId, messageIds, user.id);
+        } catch (err) {
+          console.error('Failed to mark messages as read:', err);
+        }
+      },
+      1000 // 1 second debounce
+    );
+  }, [conversationId, user]);
   
   useEffect(() => {
     if (conversationId) {
@@ -28,10 +46,32 @@ export default function ChatScreen() {
     
     return () => {
       if (conversationId) {
+        // Flush any pending read receipts before cleanup
+        readReceiptBatch?.flush();
         clearMessages(conversationId);
       }
     };
   }, [conversationId]);
+  
+  // Mark messages as read when screen is focused (debounced)
+  useFocusEffect(
+    useCallback(() => {
+      if (!user || !conversationId || messages.length === 0 || !readReceiptBatch) return;
+      
+      // Find messages that haven't been read by current user
+      const unreadIds = messages
+        .filter(m => m.senderId !== user.id && !m.readBy.includes(user.id))
+        .map(m => m.id);
+      
+      // Add to debounced batch instead of calling immediately
+      unreadIds.forEach(id => readReceiptBatch.add(id));
+      
+      return () => {
+        // Flush on unmount to ensure receipts are sent
+        readReceiptBatch.flush();
+      };
+    }, [conversationId, user, messages, readReceiptBatch])
+  );
   
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -48,6 +88,16 @@ export default function ChatScreen() {
         await sendMessage(conversationId, user.id, content);
       } catch (error) {
         console.error('Failed to send message:', error);
+      }
+    }
+  };
+  
+  const handleRetry = async (localId: string) => {
+    if (conversationId) {
+      try {
+        await retryMessage(conversationId, localId);
+      } catch (error) {
+        console.error('Failed to retry message:', error);
       }
     }
   };
@@ -86,6 +136,7 @@ export default function ChatScreen() {
               <MessageBubble
                 message={item}
                 isOwnMessage={item.senderId === user?.id}
+                onRetry={item.status === 'failed' ? () => handleRetry(item.localId!) : undefined}
               />
             )}
             inverted

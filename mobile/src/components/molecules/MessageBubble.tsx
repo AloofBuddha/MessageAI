@@ -1,32 +1,17 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Text, Button } from 'react-native-paper';
 import { Message } from '@messageai/shared';
 import { formatMessageTime } from '../../utils/dateFormatter';
+import StatusIcon from '../atoms/StatusIcon';
 
 interface MessageBubbleProps {
   message: Message;
   isOwnMessage: boolean;
+  onRetry?: () => void;
 }
 
-export default function MessageBubble({ message, isOwnMessage }: MessageBubbleProps) {
-  const getStatusIcon = () => {
-    switch (message.status) {
-      case 'sending':
-        return <MaterialCommunityIcons name="clock-outline" size={14} color="#999" />;
-      case 'sent':
-        return <MaterialCommunityIcons name="check" size={14} color="#999" />;
-      case 'delivered':
-        return <MaterialCommunityIcons name="check-all" size={14} color="#999" />;
-      case 'read':
-        return <MaterialCommunityIcons name="check-all" size={14} color="#6200ee" />;
-      case 'failed':
-        return <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#f44336" />;
-      default:
-        return null;
-    }
-  };
+export default function MessageBubble({ message, isOwnMessage, onRetry }: MessageBubbleProps) {
 
   return (
     <View style={[styles.container, isOwnMessage ? styles.ownContainer : styles.otherContainer]}>
@@ -45,8 +30,27 @@ export default function MessageBubble({ message, isOwnMessage }: MessageBubblePr
           >
             {formatMessageTime(message.timestamp)}
           </Text>
-          {isOwnMessage && <View style={styles.statusIcon}>{getStatusIcon()}</View>}
+          {isOwnMessage && (
+            <View style={styles.statusIcon}>
+              <StatusIcon status={message.status} />
+            </View>
+          )}
         </View>
+        
+        {/* Retry button for failed messages */}
+        {message.status === 'failed' && isOwnMessage && onRetry && (
+          <View style={styles.retryContainer}>
+            <Button
+              mode="text"
+              onPress={onRetry}
+              compact
+              textColor="#f44336"
+              style={styles.retryButton}
+            >
+              Retry
+            </Button>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -103,6 +107,13 @@ const styles = StyleSheet.create({
   },
   statusIcon: {
     marginLeft: 4,
+  },
+  retryContainer: {
+    marginTop: 4,
+    alignItems: 'flex-end',
+  },
+  retryButton: {
+    marginTop: -4,
   },
 });
 

@@ -60,7 +60,7 @@ describe('PendingMessageRepository', () => {
         },
       ];
 
-      mockDb.getAllSync.mockReturnValue(mockRows);
+      (mockDb.getAllSync as jest.Mock).mockReturnValue(mockRows);
 
       const result = await repository.getAll();
 
@@ -93,7 +93,7 @@ describe('PendingMessageRepository', () => {
         },
       ];
 
-      mockDb.getAllSync.mockReturnValue(mockRows);
+      (mockDb.getAllSync as jest.Mock).mockReturnValue(mockRows);
 
       const result = await repository.getByConversation('conv-1');
 
@@ -119,7 +119,7 @@ describe('PendingMessageRepository', () => {
 
   describe('count', () => {
     it('should return count of pending messages', async () => {
-      mockDb.getFirstSync.mockReturnValue({ count: 5 });
+      (mockDb.getFirstSync as jest.Mock).mockReturnValue({ count: 5 });
 
       const result = await repository.count();
 
@@ -130,7 +130,7 @@ describe('PendingMessageRepository', () => {
     });
 
     it('should return 0 when no pending messages', async () => {
-      mockDb.getFirstSync.mockReturnValue(null);
+      (mockDb.getFirstSync as jest.Mock).mockReturnValue(null);
 
       const result = await repository.count();
 

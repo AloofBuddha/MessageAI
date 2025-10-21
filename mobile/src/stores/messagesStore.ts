@@ -1,9 +1,14 @@
 import { create } from 'zustand';
 import { Message } from '@messageai/shared';
-import { listenToMessages, sendMessage as sendMessageToFirestore } from '../services/firestore/messagesService';
+import { 
+  listenToMessages, 
+  sendMessage as sendMessageToFirestore,
+  markAsDelivered as markAsDeliveredInFirestore,
+} from '../services/firestore/messagesService';
 import { messageRepository } from '../services/sqlite/messageRepository';
 import { getNetworkStatus } from '../services/network/networkMonitor';
 import { syncManager } from '../services/sync/syncManager';
+import { useAuthStore } from './authStore';
 
 interface MessagesState {
   messagesByConversation: Record<string, Message[]>;
@@ -13,6 +18,7 @@ interface MessagesState {
   
   loadMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, senderId: string, content: string) => Promise<void>;
+  retryMessage: (conversationId: string, localId: string) => Promise<void>;
   updateMessageStatus: (localId: string, status: 'sent' | 'delivered' | 'read' | 'failed') => void;
   clearMessages: (conversationId: string) => void;
   clearAllMessages: () => void;
@@ -61,6 +67,21 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       const unsubscribe = listenToMessages(
         conversationId,
         async (firestoreMessages) => {
+          // Mark messages as delivered for current user
+          const user = useAuthStore.getState().user;
+          if (user) {
+            const undeliveredIds = firestoreMessages
+              .filter(m => m.senderId !== user.id && !m.deliveredTo.includes(user.id))
+              .map(m => m.id);
+            
+            if (undeliveredIds.length > 0) {
+              // Mark as delivered in Firestore (will trigger listener update)
+              markAsDeliveredInFirestore(conversationId, undeliveredIds, user.id).catch(err => {
+                console.error('Failed to mark messages as delivered:', err);
+              });
+            }
+          }
+          
           // Replace cache with Firestore data (ensures cache matches server exactly)
           await messageRepository.replaceForConversation(conversationId, firestoreMessages);
           
@@ -166,6 +187,72 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       await messageRepository.updateStatus(localId, 'failed');
       
       throw error;
+    }
+  },
+  
+  retryMessage: async (conversationId: string, localId: string) => {
+    const user = useAuthStore.getState().user;
+    if (!user) {
+      console.error('Cannot retry message: no user logged in');
+      return;
+    }
+    
+    // Get the failed message from state
+    const messages = get().messagesByConversation[conversationId] || [];
+    const failedMessage = messages.find(m => m.localId === localId);
+    
+    if (!failedMessage) {
+      console.error('Cannot retry message: message not found');
+      return;
+    }
+    
+    // Update status to 'sending'
+    set((state) => {
+      const messages = state.messagesByConversation[conversationId] || [];
+      const updatedMessages = messages.map((msg) =>
+        msg.localId === localId ? { ...msg, status: 'sending' as const } : msg
+      );
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: updatedMessages,
+        },
+      };
+    });
+    
+    // Update in SQLite
+    await messageRepository.updateStatus(localId, 'sent'); // Will be updated to actual status by listener
+    
+    // Retry sending to Firestore
+    try {
+      await sendMessageToFirestore(
+        conversationId,
+        failedMessage.senderId,
+        failedMessage.content,
+        failedMessage.type,
+        failedMessage.imageURL,
+        localId
+      );
+      console.log('✅ Message retry successful');
+      // The real-time listener will update the message with server data
+    } catch (error: any) {
+      console.error('Failed to retry message:', error);
+      
+      // Update back to failed
+      set((state) => {
+        const messages = state.messagesByConversation[conversationId] || [];
+        const updatedMessages = messages.map((msg) =>
+          msg.localId === localId ? { ...msg, status: 'failed' as const } : msg
+        );
+        return {
+          messagesByConversation: {
+            ...state.messagesByConversation,
+            [conversationId]: updatedMessages,
+          },
+        };
+      });
+      
+      await messageRepository.updateStatus(localId, 'failed');
     }
   },
   
