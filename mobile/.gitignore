@@ -38,22 +38,4 @@ yarn-error.*
 
 # generated native folders
 /ios
-
-# Android - ignore most but keep essential config files
-/android/*
-!/android/build.gradle
-!/android/gradle.properties
-!/android/settings.gradle
-!/android/app/
-/android/app/*
-!/android/app/build.gradle
-!/android/app/src/
-/android/app/src/*
-!/android/app/src/main/
-/android/app/src/main/*
-!/android/app/src/main/AndroidManifest.xml
-!/android/app/src/main/res/
-/android/app/build/
-/android/build/
-/android/.gradle/
-/android/local.properties
+/android
