@@ -30,7 +30,7 @@ MessageAI is a real-time messaging application built with React Native, Expo, an
 
 ## Project Structure
 ```
-MessageAI-try2/
+MessageAI/
 ├── mobile/           # React Native app
 ├── shared/           # Shared types and utilities
 ├── functions/        # Firebase Cloud Functions

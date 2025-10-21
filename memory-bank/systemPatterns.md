@@ -4,7 +4,7 @@
 
 ### Monorepo Structure
 ```
-MessageAI-try2/
+MessageAI/
 ├── mobile/           # React Native + Expo app
 │   ├── app/          # Expo Router (file-based routing)
 │   ├── src/

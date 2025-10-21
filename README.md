@@ -17,7 +17,7 @@ MessageAI is a production-ready messaging application featuring:
 This is a monorepo managed with NPM Workspaces:
 
 ```
-MessageAI-try2/
+MessageAI/
 ├── mobile/          # React Native + Expo mobile app
 ├── functions/       # Firebase Cloud Functions (backend)
 ├── shared/          # Shared TypeScript types
@@ -60,7 +60,7 @@ MessageAI-try2/
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd MessageAI-try2
+cd MessageAI
 ```
 
 2. **Install dependencies**
