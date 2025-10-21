@@ -7,6 +7,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useConversationsStore } from '../../src/stores/conversationsStore';
 import ConversationListItem from '../../src/components/molecules/ConversationListItem';
 import { getConversationDisplayName } from '../../src/services/firestore/conversationsService';
+import OfflineIndicator from '../../src/components/atoms/OfflineIndicator';
 
 export default function ConversationsScreen() {
   const { user } = useAuthStore();
@@ -58,6 +59,7 @@ export default function ConversationsScreen() {
   
   return (
     <View style={styles.container}>
+      <OfflineIndicator />
       <FlatList
         data={conversations}
         keyExtractor={(item) => item.id}

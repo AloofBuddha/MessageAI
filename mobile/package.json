@@ -7,6 +7,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-native-community/netinfo": "^11.4.1",
     "expo": "~54.0.15",
     "expo-constants": "~18.0.9",
     "expo-linking": "~8.0.8",

@@ -1,0 +1,145 @@
+Description: MessageAI project patterns, preferences, and critical implementation knowledge
+Globs: mobile/**/*.{ts,tsx}, shared/**/*.ts
+
+# MessageAI Development Patterns
+
+## User Workflow Preferences
+1. **Always discuss approach before implementing** - Lead with planning, get confirmation before coding
+2. **User runs dev servers** - Never start expo/dev servers automatically
+3. **Maximize planning clarity** - Ask clarifying questions if ambiguous
+4. **Consider complexity** - Ask if simpler solution is preferable for complex tasks
+5. **Testing in emulator** - Prefer Android/iOS emulator over Expo Go for offline features
+
+## Critical Implementation Patterns
+
+### SQLite with Expo (Very Important!)
+- **Use NEW Expo SQLite API only**: `openDatabaseSync()`, `execSync()`, `runSync()`, `getFirstSync()`, `getAllSync()`
+- **NEVER use old WebSQL API**: No `db.transaction()`, no `executeSql()`, no callbacks
+- **Transactions**: Use `db.withTransactionSync()` for atomic operations
+- **Example**:
+  ```typescript
+  // ✅ CORRECT - New API
+  db.execSync('CREATE TABLE IF NOT EXISTS...')
+  const result = db.getFirstSync('SELECT * FROM...')
+  
+  // ❌ WRONG - Old API (will fail)
+  db.transaction(tx => tx.executeSql(...))
+  ```
+
+### Network Detection (Must Check Both!)
+- **Always check BOTH fields** for offline detection:
+  ```typescript
+  const isOffline = !networkStatus.isConnected || 
+                    networkStatus.isInternetReachable === false;
+  ```
+- Device can be "connected" to network but have no internet access
+- This pattern must be used in: messagesStore, syncManager, OfflineIndicator
+
+### Cache Synchronization
+- **Use `replaceForConversation()` for Firestore sync** - Ensures cache exactly matches server
+- **Use `upsert()` for optimistic updates** - Preserves pending messages
+- **Why**: `bulkUpsert()` leaves stale data, `replaceForConversation()` guarantees accuracy
+
+### Avoiding Circular Dependencies
+- syncManager should NOT import messagesStore
+- Let Firestore listeners handle status updates (single source of truth)
+- Use `useAuthStore.getState()` for non-reactive access to avoid cycles
+
+### Optimistic UI Pattern
+Standard flow for any user action:
+1. Create optimistic update with "sending" status
+2. Update UI immediately
+3. Cache to SQLite
+4. Check if offline → queue or send
+5. Let Firestore listener update status when confirmed
+
+## Component Patterns
+
+### Multi-line Text Input
+- Use `minHeight` not `height` for growth
+- Remove `numberOfLines` prop to allow expansion
+- Set `maxHeight` for scroll point (e.g., 120px for ~5 lines)
+- `multiline={true}` required
+
+### Chat Screen Layout
+- Wrap in `SafeAreaView` with `edges={['bottom']}`
+- Use `KeyboardAvoidingView` for keyboard
+- `FlatList` with `inverted` for chat history
+- ChatInput at bottom, not inside SafeAreaView
+
+## State Management Patterns
+
+### Zustand Stores
+- Minimal boilerplate
+- Actions as methods in create()
+- Use `getState()` for non-reactive access
+- Persist with Zustand middleware + SecureStore
+
+### Real-time Listeners
+- Always clean up with unsubscribe function
+- Store unsubscribe reference in state
+- Call on unmount or before new listener
+
+## Logging Strategy
+**Keep**:
+- Initialization logs (🚀, ✅)
+- Network status changes (🌐)
+- Offline/sync events (📴, 📥, 🔄)
+- Error logs (always)
+
+**Remove**:
+- Repetitive cache load counts
+- Verbose sync confirmations
+- Debug logs after testing
+
+## Firebase Patterns
+
+### Security Rules Critical Points
+- Check `request.auth != null` always
+- Verify user in `participants` array for conversations
+- Use `get()` to check parent document for nested collections
+- Index on query fields (e.g., participants array, timestamp)
+
+### Firestore Best Practices
+- Use `serverTimestamp()` for consistency
+- Store dates as Firestore Timestamps, convert to Date in app
+- Use subcollections for messages (conversations/{id}/messages)
+- Limit query results for performance (pagination ready)
+
+## Testing Checklist
+
+### Before Marking Story Complete
+1. Test all acceptance criteria
+2. Test offline mode (if applicable)
+3. Test network toggle multiple times
+4. Check for memory leaks (listeners cleaned up)
+5. Verify linter passes
+6. Clean up verbose logs
+7. Update story documentation
+8. Update memory bank
+
+### Emulator Testing
+- Use extended controls for network simulation
+- Android: 3-dot menu → Cellular → Set conditions
+- iOS: Network Link Conditioner or Settings → Wi-Fi
+
+## Common Pitfalls to Avoid
+
+1. **TypeScript**: Don't mix Expo's tsconfig with manual config - pick one
+2. **Initialization**: Add proper state guards (`isDbInitialized`, `isHydrated`)
+3. **Network Status**: Default to false, fetch initial state immediately
+4. **Message Status**: Let Firestore be source of truth, don't manually update from sync
+5. **Cache Accuracy**: Replace, don't just upsert, when syncing from server
+
+## File Organization
+- Atomic design: atoms/ (simple), molecules/ (composite), screens in app/
+- Services by feature: firebase/, firestore/, sqlite/, network/, sync/
+- Stores by domain: authStore, conversationsStore, messagesStore
+- Shared types in @messageai/shared workspace
+
+## When in Doubt
+1. Check memory bank files first
+2. Look at similar patterns in existing code
+3. Ask user for clarification
+4. Prefer simpler solution
+5. Test thoroughly before completion

@@ -1,40 +1,104 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text, Button } from 'react-native-paper';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, ActivityIndicator } from 'react-native-paper';
+import { useLocalSearchParams } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuthStore } from '../../src/stores/authStore';
+import { useMessagesStore } from '../../src/stores/messagesStore';
+import MessageBubble from '../../src/components/molecules/MessageBubble';
+import ChatInput from '../../src/components/molecules/ChatInput';
+import OfflineIndicator from '../../src/components/atoms/OfflineIndicator';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
+  const conversationId = id as string;
+  
+  const { user } = useAuthStore();
+  const { messagesByConversation, isLoading, loadMessages, sendMessage, clearMessages } = useMessagesStore();
+  
+  const messages = messagesByConversation[conversationId] || [];
+  const loading = isLoading[conversationId];
+  
+  const flatListRef = useRef<FlatList>(null);
+  
+  useEffect(() => {
+    if (conversationId) {
+      loadMessages(conversationId);
+    }
+    
+    return () => {
+      if (conversationId) {
+        clearMessages(conversationId);
+      }
+    };
+  }, [conversationId]);
+  
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+  
+  const handleSend = async (content: string) => {
+    if (user && conversationId) {
+      try {
+        await sendMessage(conversationId, user.id, content);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    }
+  };
+  
+  if (loading && messages.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+        <Text variant="bodyMedium" style={styles.loadingText}>
+          Loading messages...
+        </Text>
+      </View>
+    );
+  }
   
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <MaterialCommunityIcons name="chat-outline" size={80} color="#6200ee" />
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <OfflineIndicator />
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        {messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text variant="bodyLarge" style={styles.emptyText}>
+              No messages yet. Start the conversation!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={[...messages].reverse()} // Reverse for inverted list
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <MessageBubble
+                message={item}
+                isOwnMessage={item.senderId === user?.id}
+              />
+            )}
+            inverted
+            contentContainerStyle={styles.messagesList}
+            onContentSizeChange={() => {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }}
+          />
+        )}
         
-        <Text variant="headlineMedium" style={styles.title}>
-          Chat Screen
-        </Text>
-        
-        <Text variant="bodyLarge" style={styles.subtitle}>
-          Conversation ID: {id}
-        </Text>
-        
-        <Text variant="bodyMedium" style={styles.placeholder}>
-          Real-time messaging will be implemented in Story 1.4
-        </Text>
-        
-        <Button
-          mode="contained"
-          onPress={() => router.back()}
-          style={styles.backButton}
-          icon="arrow-left"
-        >
-          Back to Conversations
-        </Button>
-      </View>
-    </View>
+        <ChatInput onSend={handleSend} disabled={!user} />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -43,30 +107,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
+  keyboardView: {
     flex: 1,
-    padding: 24,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
-  title: {
+  loadingText: {
     marginTop: 16,
-    marginBottom: 8,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    marginBottom: 16,
     color: '#666',
   },
-  placeholder: {
-    textAlign: 'center',
-    fontStyle: 'italic',
-    opacity: 0.6,
-    marginBottom: 32,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
-  backButton: {
-    marginTop: 16,
-    minWidth: 200,
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+  },
+  messagesList: {
+    paddingVertical: 8,
   },
 });
+
 
