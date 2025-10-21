@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { User } from '@messageai/shared';
 import { auth } from '../services/firebase/config';
 import { createUserDocument, getUserDocument } from '../services/firestore/usersService';
@@ -17,6 +17,7 @@ interface AuthState {
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
   clearError: () => void;
+  initializeAuthListener: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -82,6 +83,21 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user: User | null) => set({ user, isAuthenticated: !!user }),
       
       clearError: () => set({ error: null }),
+      
+      initializeAuthListener: () => {
+        onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            // User is signed in with Firebase, fetch their profile
+            const userDoc = await getUserDocument(firebaseUser.uid);
+            if (userDoc) {
+              set({ user: userDoc, isAuthenticated: true, isLoading: false });
+            }
+          } else {
+            // User is signed out
+            set({ user: null, isAuthenticated: false, isLoading: false });
+          }
+        });
+      },
     }),
     {
       name: 'auth-storage',

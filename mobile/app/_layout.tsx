@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { PaperProvider } from 'react-native-paper';
+import { PaperProvider, ActivityIndicator, Text } from 'react-native-paper';
 import { useAuthStore } from '../src/stores/authStore';
 
 export default function RootLayout() {
   const [isMounted, setIsMounted] = useState(false);
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
+  const { isAuthenticated, isLoading, initializeAuthListener } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
   
   useEffect(() => {
     setIsMounted(true);
+    // Give Zustand persist time to hydrate
+    setTimeout(() => setIsHydrated(true), 100);
+    
+    // Initialize Firebase Auth listener
+    initializeAuthListener();
   }, []);
   
   useEffect(() => {
-    if (!isMounted || isLoading) return;
+    if (!isMounted || !isHydrated || isLoading) return;
     
     const inAuthGroup = segments[0] === '(auth)';
     
@@ -26,7 +33,21 @@ export default function RootLayout() {
     else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isMounted, isAuthenticated, isLoading, segments]);
+  }, [isMounted, isHydrated, isAuthenticated, isLoading, segments]);
+  
+  // Show loading screen while initializing
+  if (!isMounted || !isHydrated) {
+    return (
+      <PaperProvider>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <Text variant="bodyMedium" style={styles.loadingText}>
+            Loading...
+          </Text>
+        </View>
+      </PaperProvider>
+    );
+  }
   
   return (
     <PaperProvider>
@@ -34,4 +55,17 @@ export default function RootLayout() {
     </PaperProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#666',
+  },
+});
 

@@ -2,6 +2,20 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { LogBox } from 'react-native';
+
+// Suppress Firebase Auth AsyncStorage warning - we handle persistence via Zustand + SecureStore
+LogBox.ignoreLogs([
+  '@firebase/auth',
+  'AsyncStorage',
+]);
+
+// Also suppress at console level
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (args[0]?.includes?.('@firebase/auth')) return;
+  originalWarn(...args);
+};
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
